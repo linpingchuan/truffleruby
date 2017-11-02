@@ -327,12 +327,12 @@ public abstract class RegexpNodes {
         // The RegexpNodes.compile operation may modify the encoding of the source rope. This modified copy is stored
         // in the Regex object as the "user object". Since ropes are immutable, we need to take this updated copy when
         // constructing the final regexp.
-        return Layouts.REGEXP.createRegexp(factory, regexp, (Rope) regexp.getUserObject(), options, null);
+        return Layouts.REGEXP.createRegexp(factory, regexp, (Rope) regexp.getUserObject(), options, null, null);
     }
 
     @TruffleBoundary
     public static DynamicObject createRubyRegexp(DynamicObjectFactory factory, Regex regex, Rope source, RegexpOptions options) {
-        final DynamicObject regexp = Layouts.REGEXP.createRegexp(factory, null, null, RegexpOptions.NULL_OPTIONS, null);
+        final DynamicObject regexp = Layouts.REGEXP.createRegexp(factory, null, null, RegexpOptions.NULL_OPTIONS, null, null);
         RegexpNodes.setOptions(regexp, options);
         RegexpNodes.initialize(regexp, regex, source);
         return regexp;
@@ -693,13 +693,28 @@ public abstract class RegexpNodes {
     @CoreMethod(names = "to_s")
     public abstract static class ToSNode extends CoreMethodArrayArgumentsNode {
 
-        @TruffleBoundary
-        @Specialization
-        public DynamicObject toS(DynamicObject regexp) {
-            final ClassicRegexp classicRegexp = ClassicRegexp.newRegexp(getContext(), Layouts.REGEXP.getSource(regexp), Layouts.REGEXP.getRegex(regexp).getOptions());
-            return createString(classicRegexp.toByteList());
+        @Specialization(guards = "hasString(regexp)")
+        public DynamicObject toSFast(DynamicObject regexp) {
+            return createString(Layouts.REGEXP.getString(regexp));
         }
 
+        @Specialization(guards = "!hasString(regexp)")
+        public DynamicObject toS(DynamicObject regexp) {
+            Rope byteList = createRope(regexp);
+            Layouts.REGEXP.setString(regexp, byteList);
+            return createString(byteList);
+        }
+
+        @TruffleBoundary
+        protected Rope createRope(DynamicObject regexp) {
+            final ClassicRegexp classicRegexp = ClassicRegexp.newRegexp(getContext(), Layouts.REGEXP.getSource(regexp), Layouts.REGEXP.getRegex(regexp).getOptions());
+            RopeBuilder byteList = classicRegexp.toByteList();
+            return byteList.toRope();
+        }
+
+        protected boolean hasString(DynamicObject regexp) {
+            return Layouts.REGEXP.getString(regexp) != null;
+        }
     }
 
     @Primitive(name = "regexp_names")
@@ -738,7 +753,7 @@ public abstract class RegexpNodes {
 
         @Specialization
         public DynamicObject allocate(DynamicObject rubyClass) {
-            return allocateNode.allocate(rubyClass, null, null, RegexpOptions.NULL_OPTIONS, null);
+            return allocateNode.allocate(rubyClass, null, null, RegexpOptions.NULL_OPTIONS, null, null);
         }
 
     }

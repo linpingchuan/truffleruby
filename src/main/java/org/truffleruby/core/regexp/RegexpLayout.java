@@ -28,6 +28,7 @@ public interface RegexpLayout extends BasicObjectLayout {
                                @Nullable Regex regex,
                                @Nullable Rope source,
                                RegexpOptions options,
+            @Nullable Rope string,
             @Nullable EncodingCache cachedEncodings);
 
     boolean isRegexp(DynamicObject object);
@@ -41,6 +42,9 @@ public interface RegexpLayout extends BasicObjectLayout {
 
     RegexpOptions getOptions(DynamicObject object);
     void setOptions(DynamicObject object, RegexpOptions value);
+
+    Rope getString(DynamicObject object);
+    void setString(DynamicObject object, Rope value);
 
     EncodingCache getCachedEncodings(DynamicObject object);
 
